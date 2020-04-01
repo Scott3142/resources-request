@@ -171,6 +171,21 @@ function sendNewEquipmentRequestEmail_(request) {
 }
 
 /**
+ * Creates calendar event in Den01 calendar
+ */
+function createCalendarEvent(response) {
+
+  var calendar = CalendarApp.getCalendarById('bridgend.ac.uk_f9tbdustnbeoqscf21tcf747t4@group.calendar.google.com');
+
+  var eventName = response['Which Den01 resources would you like to request?'];
+  var startDateTime = new Date(response['Date & time required']);
+  var endDateTime = new Date(startDateTime + 60*60*1000);
+  var eventDescription = 'Request sent by: ' + response.email + '\n\nRequest: \n' + response['Please explain what exactly you would like to be able to do and one of the Learning Technologists will be in touch as soon as possible.'];
+
+  calendar.createEvent(eventName,startDateTime,endDateTime,{description: eventDescription});
+}
+
+/**
  * Handle new form submissions to trigger the workflow.
  *
  * @param {Object} event - Form submit event
@@ -178,6 +193,7 @@ function sendNewEquipmentRequestEmail_(request) {
 function onFormSubmit_(event) {
   var response = mapResponse_(event.response);
   sendNewEquipmentRequestEmail_(response);
+  createCalendarEvent(response);
   /**
   var equipmentDetails = Utilities.formatString('%s\n%s\n%s',
       response['Laptop'],
