@@ -154,61 +154,12 @@ function setResourceList_(ss,item_resource,sectionExplain,sectionRedirect) {
 }
 
 /**
- * Handle new form submissions to trigger the workflow.
- *
- * @param {Object} event - Form submit event
- */
-function onFormSubmit_(event) {
-  var response = mapResponse_(event.response);
-  sendNewEquipmentRequestEmail_(response);
-  var equipmentDetails = Utilities.formatString('%s\n%s\n%s',
-      response['Laptop'],
-      response['Desktop'],
-      response['Monitor']);
-  var row = ['New',
-    '',
-    response['Desk location'],
-    response['Employee name'],
-    response['Desk location'],
-    equipmentDetails,
-    response['email']];
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var sheet = ss.getSheetByName('Pending');
-  sheet.appendRow(row);
-}
-
-/**
- * Sweeps completed events, notifying the requestors and archiving them
- * to the completed
- *
- * @param {Object} event
- */
-function processCompletedItems_() {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var pending = ss.getSheetByName('Pending');
-  var completed = ss.getSheetByName('Completed');
-  var rows = pending.getDataRange().getValues();
-  rows.forEach(function(row, index) {
-    var status = row[0];
-    if (status === 'Completed' || status == 'Cancelled') {
-      pending.deleteRow(index + 1);
-      completed.appendRow(row);
-      sendEquipmentRequestCompletedEmail_({
-        'Employee name': row[3],
-        'Desk location': row[4],
-        'email': row[6],
-      });
-    }
-  });
-}
-
-/**
  * Sends email notifying team a new equipment request has been submitted.
  *
  * @param {Object} request - Request details
  */
 function sendNewEquipmentRequestEmail_(request) {
-  var template = HtmlService.createTemplateFromFile('new-equipment-request.html');
+  var template = HtmlService.createTemplateFromFile('resource-request.html');
   template.request = request;
   template.sheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
   var msg = template.evaluate();
@@ -220,19 +171,29 @@ function sendNewEquipmentRequestEmail_(request) {
 }
 
 /**
- * Sends email notifying requestor that the equipment has been provided.
+ * Handle new form submissions to trigger the workflow.
  *
- * @param {Object} request - Request details
+ * @param {Object} event - Form submit event
  */
-function sendEquipmentRequestCompletedEmail_(request) {
-  var template = HtmlService.createTemplateFromFile('request-complete.html');
-  template.request = request;
-  var msg = template.evaluate();
-  MailApp.sendEmail({
-    to: request.email,
-    subject: 'Equipment request completed',
-    htmlBody: msg.getContent(),
-  });
+function onFormSubmit_(event) {
+  var response = mapResponse_(event.response);
+  sendNewEquipmentRequestEmail_(response);
+  /**
+  var equipmentDetails = Utilities.formatString('%s\n%s\n%s',
+      response['Laptop'],
+      response['Desktop'],
+      response['Monitor']);
+  var row = ['New',
+    '',
+    response['Due Date'],
+    response['Employee name'],
+    response['Desk location'],
+    equipmentDetails,
+    response['email']];
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('Pending');
+  sheet.appendRow(row);
+  */
 }
 
 /**
@@ -253,3 +214,48 @@ function mapResponse_(response) {
     return obj;
   }, initialValue);
 }
+
+/**
+ * Sweeps completed events, notifying the requestors and archiving them
+ * to the completed
+ *
+ * @param {Object} event
+ */
+/**
+function processCompletedItems_() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var pending = ss.getSheetByName('Pending');
+  var completed = ss.getSheetByName('Completed');
+  var rows = pending.getDataRange().getValues();
+  rows.forEach(function(row, index) {
+    var status = row[0];
+    if (status === 'Completed' || status == 'Cancelled') {
+      pending.deleteRow(index + 1);
+      completed.appendRow(row);
+      sendEquipmentRequestCompletedEmail_({
+        'Employee name': row[3],
+        'Desk location': row[4],
+        'email': row[6],
+      });
+    }
+  });
+}
+*/
+
+/**
+ * Sends email notifying requestor that the equipment has been provided.
+ *
+ * @param {Object} request - Request details
+ */
+ /**
+function sendEquipmentRequestCompletedEmail_(request) {
+  var template = HtmlService.createTemplateFromFile('request-complete.html');
+  template.request = request;
+  var msg = template.evaluate();
+  MailApp.sendEmail({
+    to: request.email,
+    subject: 'Equipment request completed',
+    htmlBody: msg.getContent(),
+  });
+}
+*/

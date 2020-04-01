@@ -2,18 +2,18 @@
 <html>
   <body>
     <p>
-    A new equipment request has been made by <?= request.email ?>.
+    A new Den01 resource request has been made by <?= request.email ?>.
     </p>
-    
+
     <p>
-    Employee name: <?= request['Employee name'] ?><br/>
-    Desk location name: <?= request['Desk location'] ?><br/>
-    Due date: <?= request['Due date'] ?><br/>
-    Laptop model: <?= request['Laptop'] ?><br/>
-    Desktop model: <?= request['Desktop'] ?><br/>
-    Monitor(s): <?= request['Monitor'] ?><br/>
+    Campus: <?= request['Campus'] ?><br/>
+    Location: <?= request['Location'] ?><br/>
+    Date and Time Required: <?= request['Date & time required'] ?><br/>
+    Resources: <?= request['Which Den01 resources would you like to request?'] ?><br/>
+    Learning Technologist: <?= request['Would you like assistance from a learning technologist before/while using the resource?'] ?><br/>
+    Description: <?= request['Please explain what exactly you would like to be able to do and one of the Learning Technologists will be in touch as soon as possible.'] ?><br/>
     </p>
-    
+
     See <a href="<?= sheetUrl ?>">the spreadsheet</a> to take or assign this item.
   </body>
 </html>
