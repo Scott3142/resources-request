@@ -14,33 +14,17 @@
 //
 // Modifications made be Scott Morgan <smorgan@bridgend.ac.uk>
 
-var request_notification_email = 'smorgan@bridgend.ac.uk';
+var SPREADSHEET_ID = '19sL72pKG0sCKR6v1HQ7JQLFBT4iJ4UHnFXM78QUu_D8';
+var REQUEST_NOTIFICATION_EMAIL = 'smorgan@bridgend.ac.uk';
 
-var resources_available = [
-  'Discussion with Learning Technologist',
-  'Training session',
-  'Virtual reality headsets - Oculus Go',
-  'Virtual reality headsets - Oculus Quest',
-  'Indoor drones',
-  'Outdoor drone',
-  'Raspberry Pi',
-  'Micro:bits',
-  'Robots',
-  '360° camera',
-  '3D scanner',
-  'DSLR camera',
-  'Swivl lecture capture',
-  '3D printing',
-];
-  
-var campuses = [
+var CAMPUSES = [
   'Cowbridge Road',
   'Pencoed',
   "Queen's Road",
   "Maesteg",
 ];
 
-var available_locations = [
+var AVAILABLE_LOCATIONS = [
   'Den01',
   'Own space',
 ];
@@ -51,9 +35,9 @@ var available_locations = [
  * Add custom menu items when opening the sheet.
  */
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('Equipment requests')
-      .addItem('Set up', 'setup_')
-      .addItem('Clean up', 'cleanup_')
+  SpreadsheetApp.getUi().createMenu('Resources request')
+      .addItem('Initialise', 'setup_')
+      .addItem('Update', 'update_')
       .addToUi();
 }
 
@@ -61,65 +45,112 @@ function onOpen() {
  * Set up the form and triggers for the workflow.
  */
 function setup_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   if (ss.getFormUrl()) {
-    var msg = 'Form already exists. Unlink the form and try again.';
+    var msg = 'Form already exists. Try running update instead.';
     SpreadsheetApp.getUi().alert(msg);
     return;
   }
-  var form = FormApp.create('Resources Request Form - Apps Script Version')
+  var form = FormApp.create('Resources Request Form')
       .setCollectEmail(true)
-      .setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId())
+      .setDestination(FormApp.DestinationType.SPREADSHEET, SPREADSHEET_ID)
       .setLimitOneResponsePerUser(false);
-  form.addListItem().setTitle('Campus').setRequired(true).setChoiceValues(campuses);
-  form.addListItem().setTitle('Location').setRequired(true).setChoiceValues(available_locations);
+  form.addListItem().setTitle('Campus').setRequired(true).setChoiceValues(CAMPUSES);
+  form.addListItem().setTitle('Location').setRequired(true).setChoiceValues(AVAILABLE_LOCATIONS);
   form.addDateTimeItem().setTitle('Date & time required').setRequired(true);
-  //form.addTimeItem().setTitle('Time required').setRequired(true);
-  var item = form.addMultipleChoiceItem();
-  item.setTitle('Would you like assistance from a learning technologist before/while using the resource?')
-      .setChoices([
-        item.createChoice('Yes'),
-        item.createChoice('No')
-       ]);
 
-  // Section 2
-  form.addParagraphTextItem().setTitle('Please explain what exactly you would like to be able to do and one of the Learning Technologists will be in touch as soon as possible.').setRequired(true);
-  
-  // Section 3
+  // Adds multiple choice question, assistance question and new sections
+  var item_resource = form.addMultipleChoiceItem();
+  var item_lt = form.addListItem();
+  var sectionExplain = form.addPageBreakItem();
+  form.addParagraphTextItem()
+      .setTitle('Please explain what exactly you would like to be able to do and one of the Learning Technologists will be in touch as soon as possible.')
+      .setRequired(true)
+  var sectionRedirect = form.addPageBreakItem();
   form.addSectionHeaderItem().setTitle('You have requested a training session. Please use the specific training request form, available here: https://forms.gle/w9iPVA23VPJJ4LYMA');
+  var sectionUnused = form.addPageBreakItem();
 
-  // Hide the raw form responses.
-  ss.getSheets().forEach(function(sheet) {
-    if (sheet.getFormUrl() == ss.getFormUrl()) {
-      sheet.hideSheet();
-    }
-  });
+  sectionExplain.setGoToPage(FormApp.PageNavigationType.CONTINUE); // Required explicitly
+  sectionRedirect.setGoToPage(FormApp.PageNavigationType.SUBMIT);
+  sectionUnused.setGoToPage(FormApp.PageNavigationType.RESTART);
+
+  // Sets up resources list
+  setResourceList_(ss,item_resource,sectionExplain,sectionRedirect)
+
+  item_lt.setTitle('Would you like assistance from a learning technologist before/while using the resource?')
+         .setChoiceValues(['Yes','No'])
+         .setRequired(true);
+
   // Start workflow on each form submit
   ScriptApp.newTrigger('onFormSubmit_')
       .forForm(form)
       .onFormSubmit()
       .create();
+
   // Archive completed items every 5m.
-  ScriptApp.newTrigger('processCompletedItems_')
-      .timeBased()
-      .everyMinutes(5)
-      .create();
+  //ScriptApp.newTrigger('processCompletedItems_')
+  //    .timeBased()
+  //    .everyMinutes(5)
+  //    .create();
 }
 
 /**
  * Cleans up the project (stop triggers, form submission, etc.)
  */
-function cleanup_() {
-  var formUrl = SpreadsheetApp.getActiveSpreadsheet().getFormUrl();
+function update_() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID)
+  var formUrl = ss.getFormUrl();
   if (!formUrl) {
     return;
   }
-  ScriptApp.getProjectTriggers().forEach(function(trigger) {
-    ScriptApp.deleteTrigger(trigger);
-  });
-  FormApp.openByUrl(formUrl)
-      .deleteAllResponses()
-      .setAcceptingResponses(false);
+  var title = 'Do you know what this does?';
+  var msg = 'This script will update the resources and quantities in the from with data from the \'Available\' tab.';
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.alert(title,msg,ui.ButtonSet.OK_CANCEL);
+
+  if (response == ui.Button.OK) {
+    var form = FormApp.openByUrl(formUrl);
+
+    var items = form.getItems(FormApp.ItemType.MULTIPLE_CHOICE)
+    var sections = form.getItems(FormApp.ItemType.PAGE_BREAK)
+
+    var item_resource = items[0].asMultipleChoiceItem();
+    var sectionExplain = sections[0].asPageBreakItem();
+    var sectionRedirect = sections[1].asPageBreakItem();
+
+    setResourceList_(ss,item_resource,sectionExplain,sectionRedirect)
+  } else {
+    return;
+  }
+
+}
+
+function setResourceList_(ss,item_resource,sectionExplain,sectionRedirect) {
+
+  // Sets up resources list
+  item_resource.setTitle('Which Den01 resources would you like to request?').setRequired(true);
+  item_resource.createChoice('Training session',sectionRedirect);
+
+  var sheet_available = ss.getSheetByName('Available')
+  var data = sheet_available.getRange(1, 1, sheet_available.getLastRow() - 1, 2).getValues();
+
+  var choiceArray = [];
+  choiceArray.push(item_resource.createChoice('Training session',sectionRedirect))
+  for (var i=0; i < data.length; i++){
+    var resourceInd = data[i][0]; // resource
+    var numAvailableInd = +data[i][1]; // number available
+
+    if (numAvailableInd == 0) {
+      quString = resourceInd;
+    } else {
+      quString = resourceInd + " (" + numAvailableInd + " available)";
+    }
+
+    choiceArray.push(item_resource.createChoice(quString,sectionExplain));
+
+  }
+
+  item_resource.setChoices(choiceArray);
 }
 
 /**
@@ -141,8 +172,8 @@ function onFormSubmit_(event) {
     response['Desk location'],
     equipmentDetails,
     response['email']];
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Pending requests');
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('Pending');
   sheet.appendRow(row);
 }
 
@@ -153,9 +184,9 @@ function onFormSubmit_(event) {
  * @param {Object} event
  */
 function processCompletedItems_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var pending = ss.getSheetByName('Pending requests');
-  var completed = ss.getSheetByName('Completed requests');
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var pending = ss.getSheetByName('Pending');
+  var completed = ss.getSheetByName('Completed');
   var rows = pending.getDataRange().getValues();
   rows.forEach(function(row, index) {
     var status = row[0];
@@ -183,7 +214,7 @@ function sendNewEquipmentRequestEmail_(request) {
   var msg = template.evaluate();
   MailApp.sendEmail({
     to: REQUEST_NOTIFICATION_EMAIL,
-    subject: 'New equipment request',
+    subject: 'New resource request',
     htmlBody: msg.getContent(),
   });
 }
